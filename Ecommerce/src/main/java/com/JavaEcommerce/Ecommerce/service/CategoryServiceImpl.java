@@ -27,24 +27,32 @@ public class CategoryServiceImpl implements CategoryService {
 
 
     @Override
-    public CategoryResponseDto getAllCategories(Integer pageNumber, Integer pageSize,String sortByCategories, String sortOrder) {
-        Sort sortByOrder=sortOrder.equalsIgnoreCase("asc")
-                ?Sort.by(sortByCategories).ascending()
-                :Sort.by(sortByCategories).descending();
-        Pageable pageDetails= PageRequest.of(pageNumber,pageSize,sortByOrder);
-        Page<Category> categoryPage=categoryRepository.findAll(pageDetails);
-        List<Category > categories = categoryPage.getContent();
-        if(categories.isEmpty())
-            throw new ApiException("Cannot find categories with name: ");
-        List<CategoryDto> categoryDtos=categories.stream()
-                .map(category -> modelMapper.map(category,CategoryDto.class)).toList();
-        CategoryResponseDto categoryResponseDto=new CategoryResponseDto();
+    public CategoryResponseDto getAllCategories(Integer pageNumber, Integer pageSize,
+                                                String sortBy, String sortOrder) {
+        Sort sortByOrder = sortOrder.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByOrder);
+        Page<Category> categoryPage = categoryRepository.findAll(pageDetails);
+        List<Category> categories = categoryPage.getContent();
+
+        if (categories.isEmpty()) {
+            throw new ApiException("No categories found");
+        }
+
+        List<CategoryDto> categoryDtos = categories.stream()
+                .map(category -> modelMapper.map(category, CategoryDto.class))
+                .toList();
+
+        CategoryResponseDto categoryResponseDto = new CategoryResponseDto();
         categoryResponseDto.setContent(categoryDtos);
         categoryResponseDto.setPageNumber(categoryPage.getNumber());
         categoryResponseDto.setPageSize(categoryPage.getSize());
         categoryResponseDto.setTotalPages(categoryPage.getTotalPages());
         categoryResponseDto.setTotalElements(categoryPage.getTotalElements());
         categoryResponseDto.setLastPage(categoryPage.isLast());
+
         return categoryResponseDto;
     }
 

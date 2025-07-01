@@ -1,21 +1,16 @@
-package com.JavaEcommerce.Ecommerce.category;
+package com.JavaEcommerce.Ecommerce.controller;
 
 import com.JavaEcommerce.Ecommerce.config.AppConstant;
-import com.JavaEcommerce.Ecommerce.model.Category;
 import com.JavaEcommerce.Ecommerce.payload.CategoryDto;
 import com.JavaEcommerce.Ecommerce.payload.CategoryResponseDto;
-import com.JavaEcommerce.Ecommerce.repo.CategoryRepository;
 import com.JavaEcommerce.Ecommerce.service.CategoryService;
 import jakarta.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 @RestController
 @RequestMapping("/api")
 public class CategoryController {
@@ -31,14 +26,15 @@ public class CategoryController {
         return new ResponseEntity<>("Echoed message"+message,HttpStatus.OK);
     }
     @GetMapping("/categories")
-    public ResponseEntity<CategoryResponseDto>  getCategories(@RequestParam(name="PageNumber",defaultValue = AppConstant.PAGE_NUMBER,required = false)Integer pageNumber,
-                                                              @RequestParam(name="PageSize",defaultValue = AppConstant.PAGE_SIZE ,required = false)Integer pageSize,
-                                                              @RequestParam(name="sortby",defaultValue = AppConstant.SORT_CATEGORIES,required = false) String sortBy,
-                                                              @RequestParam(name="sortOrders",defaultValue = AppConstant.SORT_BY_DIR,required = false) String sortOrder){
-        CategoryResponseDto categoryResponseDto= categoryService.getAllCategories(pageNumber,pageSize,sortBy,sortOrder);
-        return new ResponseEntity<>(categoryResponseDto,HttpStatus.OK);
-    }
+    public ResponseEntity<CategoryResponseDto> getCategories(
+            @RequestParam(name = "PageNumber", defaultValue = AppConstant.PAGE_NUMBER, required = false) Integer pageNumber,
+            @RequestParam(name = "PageSize", defaultValue = AppConstant.PAGE_SIZE, required = false) Integer pageSize,
+            @RequestParam(name = "sortBy", defaultValue = AppConstant.SORT_CATEGORIES, required = false) String sortBy,
+            @RequestParam(name = "sortOrder", defaultValue = AppConstant.SORT_BY_DIR, required = false) String sortOrder) {
 
+        CategoryResponseDto categoryResponseDto = categoryService.getAllCategories(pageNumber, pageSize, sortBy, sortOrder);
+        return ResponseEntity.ok(categoryResponseDto);
+    }
     @PostMapping("/categories")
     public ResponseEntity<CategoryDto> addCategory(@Valid @RequestBody CategoryDto categoryDto){
       CategoryDto savedCategoryDto= categoryService.createCategory(categoryDto);
