@@ -59,7 +59,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryDto createCategory(CategoryDto categoryDto) {
         Category category = modelMapper.map(categoryDto, Category.class);
-
+        category.setCategoryId(null);
         Optional<Category> existingCategory = categoryRepository.findByCategoryName(category.getCategoryName());
 
         if(existingCategory.isPresent()) {
