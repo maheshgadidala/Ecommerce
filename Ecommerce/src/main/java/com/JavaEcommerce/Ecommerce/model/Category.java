@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.boot.autoconfigure.web.WebProperties;
 
+import java.util.List;
+
 @Entity
 @Table(name = "category")
 @Data
@@ -21,4 +23,6 @@ public class Category {
     @Column(name = "category_name",unique = true)
     private String categoryName;
 
+    @OneToMany(mappedBy = "category",cascade = CascadeType.ALL)
+    List<Product>product;
 }
