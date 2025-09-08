@@ -11,15 +11,15 @@ import com.JavaEcommerce.Ecommerce.repo.ProductRepo;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class ProductServiceImpl implements ProductService{
@@ -65,13 +65,24 @@ public class ProductServiceImpl implements ProductService{
     }
 
     @Override
-    public ProductResponse getallProducts() {
-       List<Product>products= productRepo.findAll();
+    public ProductResponse getallProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
+        //sort and pagination of products
+        Sort sortByAndOrder= (sortDir.equalsIgnoreCase("asc"))? Sort.by(sortBy).ascending():Sort.by(sortBy).descending();
+        Pageable pageable= PageRequest.of(pageNumber,pageSize,sortByAndOrder);
+
+        Page<Product> pageProducts= productRepo.findAll(pageable);
+        List<Product> products=pageProducts.getContent();
+      // List<Product>products= productRepo.findAll();
        List<ProductDto> productDtoList=products.stream()
                .map(product -> modelMapper.map(product,ProductDto.class))
                .toList();
        ProductResponse productResponse=new ProductResponse();
-       productResponse.setContent(productDtoList);
+         productResponse.setContent(productDtoList);
+         productResponse.setPageNumber(pageProducts.getNumber());
+         productResponse.setPageSize(pageProducts.getSize());
+         productResponse.setTotalElements(pageProducts.getTotalElements());
+         productResponse.setTotalPages((long) pageProducts.getTotalPages());
+         productResponse.setLastPage(pageProducts.isLast());
         return productResponse;
     }
 

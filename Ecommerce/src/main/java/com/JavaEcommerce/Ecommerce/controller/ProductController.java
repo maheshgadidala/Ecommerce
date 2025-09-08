@@ -1,10 +1,12 @@
 package com.JavaEcommerce.Ecommerce.controller;
 
 
+import com.JavaEcommerce.Ecommerce.config.AppConstant;
 import com.JavaEcommerce.Ecommerce.model.Product;
 import com.JavaEcommerce.Ecommerce.payload.ProductDto;
 import com.JavaEcommerce.Ecommerce.payload.ProductResponse;
 import com.JavaEcommerce.Ecommerce.service.ProductService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +23,7 @@ public class ProductController {
     ProductService productService;
 
     @PostMapping("/admin/category/{categoryId}/product")
-    public ResponseEntity<ProductDto> addProduct(@RequestBody ProductDto productDto,
+    public ResponseEntity<ProductDto> addProduct(@Valid @RequestBody ProductDto productDto,
                                                  @PathVariable Long categoryId) {
 
         ProductDto savedProductDto = productService.addprduct(categoryId, productDto);
@@ -29,8 +31,14 @@ public class ProductController {
     }
 
     @GetMapping("/public/getProducts")
-    public ResponseEntity<ProductResponse> getAllProducts() {
-        ProductResponse productResponse = productService.getallProducts();
+    public ResponseEntity<ProductResponse> getAllProducts(
+            @RequestParam(name = "PageNumber", defaultValue = AppConstant.PAGE_NUMBER, required = false) Integer pageNumber,
+            @RequestParam(name = "PageSize", defaultValue = AppConstant.PAGE_SIZE, required = false) Integer pageSize,
+            @RequestParam(name = "SortBy", defaultValue = AppConstant.SORT_PRODUCTS, required = false) String sortBy,
+            @RequestParam(name = "SortDir", defaultValue = AppConstant.SORT_BY_DIR, required = false) String sortDir
+
+    ) {
+        ProductResponse productResponse = productService.getallProducts(pageNumber, pageSize, sortBy, sortDir);
         return new ResponseEntity<>(productResponse, HttpStatus.OK);
     }
 

@@ -1,5 +1,6 @@
 package com.JavaEcommerce.Ecommerce.service;
 
+import com.JavaEcommerce.Ecommerce.model.User;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +12,7 @@ public class KafkaProducer {
 
    private static final Logger logger = Logger.getLogger(KafkaProducer.class.getName());
 
-    private KafkaTemplate<String, String> kafkaTemplate;
+    private KafkaTemplate<String,String> kafkaTemplate;
 
     public KafkaProducer(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
@@ -21,5 +22,4 @@ public class KafkaProducer {
         kafkaTemplate.send(topic, message);
         logger.info("Message sent to topic: " + topic);
     }
-
 }

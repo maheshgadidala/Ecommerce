@@ -1,6 +1,5 @@
 package com.JavaEcommerce.Ecommerce.service;
 
-import com.JavaEcommerce.Ecommerce.model.Product;
 import com.JavaEcommerce.Ecommerce.payload.ProductDto;
 import com.JavaEcommerce.Ecommerce.payload.ProductResponse;
 import org.springframework.stereotype.Service;
@@ -12,7 +11,7 @@ import java.io.IOException;
 public interface ProductService {
     ProductDto addprduct(Long categoryId, ProductDto productDto);
 
-    ProductResponse getallProducts();
+    ProductResponse getallProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortDir);
 
     ProductResponse searchByCategory(Long categoryId);
 

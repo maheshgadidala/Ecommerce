@@ -19,7 +19,7 @@ public class ProductDto {
     private String image;
     private String productDesc;
     private Integer quantity;
-    private double price;
-    private double discount;
-    private double specialPrice;
+    private Double price;
+    private Double discount;
+    private Double specialPrice;
 }
