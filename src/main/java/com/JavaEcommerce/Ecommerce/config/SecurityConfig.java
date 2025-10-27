@@ -77,10 +77,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .httpBasic(withDefaults());
-
-        http.exceptionHandling(Exception -> Exception.authenticationEntryPoint(unauthorizedHandler));
-        http.addFilterBefore(authFilters(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+                .httpBasic(withDefaults())
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(unauthorizedHandler));
+                http.addFilterBefore(authFilters(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

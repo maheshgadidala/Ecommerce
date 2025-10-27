@@ -18,6 +18,7 @@ import java.util.List;
 @RequestMapping("/api")
 public class LoginPage {
 
+    @Autowired
     AuthenticationManager authenticationManager;
 
     @Autowired
