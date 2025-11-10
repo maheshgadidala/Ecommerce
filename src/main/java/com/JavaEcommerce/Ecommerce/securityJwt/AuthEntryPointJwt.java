@@ -1,4 +1,4 @@
-package com.JavaEcommerce.Ecommerce.utils;
+package com.JavaEcommerce.Ecommerce.securityJwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
@@ -19,24 +19,24 @@ import java.util.Map;
 @Component
 public class AuthEntryPointJwt implements AuthenticationEntryPoint {
     //logger
-    private static final Logger logger= (Logger) LoggerFactory.getLogger(AuthEntryPointJwt.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuthEntryPointJwt.class);
     @Override
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
 
-        logger.warn("Unauthorized error: {}"+authException.getMessage());
+        logger.warn("Unauthorized error: {}", authException == null ? "Full authentication is required to access this resource" : authException.getMessage());
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.sendError(HttpServletResponse.SC_UNAUTHORIZED,"Error: Unauthorized");
+
         final Map<String,Object> body= new HashMap<>();
         body.put("status",HttpServletResponse.SC_UNAUTHORIZED);
         body.put("error","Unauthorized");
-        body.put("message",authException.getMessage());
+        body.put("message", authException == null ? "Full authentication is required to access this resource" : authException.getMessage());
         body.put("path",request.getServletPath());
 
         ObjectMapper mapper=new ObjectMapper();
         mapper.writeValue(response.getOutputStream(),body);
-
 
     }
 }
