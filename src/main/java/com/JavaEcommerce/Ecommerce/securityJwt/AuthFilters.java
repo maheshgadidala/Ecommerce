@@ -34,7 +34,7 @@ public class AuthFilters extends OncePerRequestFilter {
                 path.startsWith("/api/auth/") ||
                         path.equals("/api/signin") ||
                         path.equals("/api/signup") ||
-                        path.startsWith("/api/public/") ||
+//                        path.startsWith("/api/public/") ||
                         path.startsWith("/h2-console/") ||
                         path.equals("/error")
         );
@@ -54,7 +54,7 @@ public class AuthFilters extends OncePerRequestFilter {
 
         try {
             // Extract JWT from header
-            String jwt = jwtUtils.getJwtFromHeader(request);
+            String jwt = jwtUtils.getJwtFromCookies(request);
 
             // Only process if JWT exists
             if (jwt != null && !jwt.isEmpty()) {

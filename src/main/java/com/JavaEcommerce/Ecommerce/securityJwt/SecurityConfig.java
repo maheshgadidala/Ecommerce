@@ -102,7 +102,9 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         // Public GET endpoints require USER role
-                        .requestMatchers(HttpMethod.GET, "/api/public/**").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/public/**").hasAnyRole("USER", "ADMIN")
+                        // Public POST endpoints require ADMIN role
+                        .requestMatchers(HttpMethod.POST, "/api/public/**").hasRole("ADMIN")
                         // Public POST endpoints require ADMIN role
                         .requestMatchers(HttpMethod.POST, "/api/public/**").hasRole("ADMIN")
                         // Admin endpoints

@@ -1,14 +1,18 @@
 package com.JavaEcommerce.Ecommerce.securityJwt;
 
+import com.JavaEcommerce.Ecommerce.securityServices.UserDetailImpl;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.WebUtils;
 
 import java.security.Key;
 import java.util.Date;
@@ -23,20 +27,46 @@ public class JwtUtils {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    public String getJwtFromHeader(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            String token = bearerToken.substring(7).trim();
-            logger.debug("Extracted JWT from header, length: {}", token.length());
+            @Value("${jwt.cookie.name}")
+    private String jwtCookie;
+
+//    public String getJwtFromHeader(HttpServletRequest request) {
+//        String bearerToken = request.getHeader("Authorization");
+//        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+//            String token = bearerToken.substring(7).trim();
+//            logger.debug("Extracted JWT from header, length: {}", token.length());
+//            return token;
+//        }
+//        logger.debug("No Bearer token found in Authorization header");
+//        return null;
+//    }
+
+    //JwtCookies
+    public String getJwtFromCookies(HttpServletRequest request){
+        Cookie cookie = WebUtils.getCookie(request,jwtCookie);
+        if (cookie != null) {
+            String token = cookie.getValue();
+            logger.debug("Extracted JWT from cookie, length: {}", token.length());
             return token;
+        } else {
+            logger.debug("No JWT cookie found");
+            return null;
         }
-        logger.debug("No Bearer token found in Authorization header");
-        return null;
+
     }
 
-    public String genearteJwtTokenFromUserName(UserDetails userDetails) {
-        return generateJwtTokenFromUsername(userDetails.getUsername());
+    //Generate JwtCookie
+    public ResponseCookie generateJwtCookie(UserDetailImpl userDetails){
+        String jwt = generateJwtTokenFromUsername(userDetails.getUsername());
+        logger.debug("Generated JWT for cookie, length: {}", jwt.length());
+        return ResponseCookie.from(jwtCookie,jwt)
+                .path("/api")
+                .maxAge(jwtExpirationMs/1000)
+                .httpOnly(false)
+                .build();
     }
+
+
 
     public String generateJwtTokenFromUsername(String username) {
         logger.info("=== Generating JWT ===");
