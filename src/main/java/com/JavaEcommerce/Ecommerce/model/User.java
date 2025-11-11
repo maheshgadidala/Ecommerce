@@ -32,7 +32,7 @@ public class User {
     private String userEmail;
 
     @Column(name = "user_password", nullable = false)
-    @Size(min = 8, max = 20, message = "Password must be at least 8 characters long")
+    @Size(min = 8, max = 100, message = "Password must be at least 8 characters long")
     private String password;
 
     // db relationships

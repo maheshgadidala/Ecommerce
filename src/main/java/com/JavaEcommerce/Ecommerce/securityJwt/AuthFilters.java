@@ -16,58 +16,84 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AuthFilters  extends OncePerRequestFilter {
+public class AuthFilters extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(AuthFilters.class);
+
     @Autowired
     private JwtUtils jwtUtils;
+
     @Autowired
     private UserDetailsService userDetailsService;
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        String servletPath = request.getServletPath();
 
-        // Skip JWT validation for these endpoints (check both servletPath and requestURI)
-        boolean shouldSkip = (path != null && (path.equals("/api/signin") || path.equals("/api/echo") || path.startsWith("/api/public/") || path.startsWith("/api/auth/") || path.startsWith("/h2-console/")))
-                || (servletPath != null && (servletPath.equals("/api/signin") || servletPath.equals("/api/echo") || servletPath.startsWith("/api/public/") || servletPath.startsWith("/api/auth/") || servletPath.startsWith("/h2-console/")));
+        // Skip JWT validation for public endpoints - no authentication needed
+        boolean shouldSkip = path != null && (
+                path.startsWith("/api/auth/") ||
+                        path.equals("/api/signin") ||
+                        path.equals("/api/signup") ||
+                        path.startsWith("/api/public/") ||
+                        path.startsWith("/h2-console/") ||
+                        path.equals("/error")
+        );
 
         if (shouldSkip) {
-            logger.info("AuthFilters: Skipping JWT validation for: " + path + " (servletPath=" + servletPath + ")");
+            logger.info("AuthFilters: SKIPPING JWT validation for: {}", path);
         }
 
         return shouldSkip;
     }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        logger.debug("AuthFilters: Processing request: " + request.getRequestURI());
-        try{
-            // Extract and validate JWT
-            String jwt=jwtUtils.getJwtFromHeader(request);
-            if(jwt !=null && jwtUtils.validateToken(jwt)){
-                // Extract username from JWT
-                String userName=jwtUtils.getUserNameFromJwt(jwt);
-                if (userName != null) {
-                    // Load user details
-                    UserDetails userDetails=userDetailsService.loadUserByUsername(userName);
-                    // Create authentication token
-                    UsernamePasswordAuthenticationToken authenticationToken=new UsernamePasswordAuthenticationToken (userDetails,null,userDetails.getAuthorities());
-                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    // Set the authentication in the SecurityContext
-                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-                    logger.debug("AuthFilters: User authenticated: " + userName);
-                } else {
-                    logger.debug("AuthFilters: Token parsed but username was null");
-                }
-            }else {
-                logger.debug("AuthFilters: No JWT token found in request");
-            }
-        }catch (Exception e){
-            logger.warn("AuthFilters: Error during authentication: " + e.getMessage());
-        }
-        // Continue the filter chain
-        filterChain.doFilter(request,response);
-    }
+        logger.debug("AuthFilters: Processing request: {}", request.getRequestURI());
 
+        try {
+            // Extract JWT from header
+            String jwt = jwtUtils.getJwtFromHeader(request);
+
+            // Only process if JWT exists
+            if (jwt != null && !jwt.isEmpty()) {
+                logger.debug("AuthFilters: Found JWT token, validating...");
+
+                if (jwtUtils.validateToken(jwt)) {
+                    logger.debug("AuthFilters: Token is valid, extracting username...");
+
+                    String userName = jwtUtils.getUserNameFromJwt(jwt);
+
+                    if (userName != null && !userName.isEmpty()) {
+                        logger.debug("AuthFilters: Username extracted: {}", userName);
+
+                        // Load user details
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(userName);
+
+                        // Create authentication token
+                        UsernamePasswordAuthenticationToken authenticationToken =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                        // Set authentication in SecurityContext
+                        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                        logger.debug("AuthFilters: User authenticated successfully: {}", userName);
+                    } else {
+                        logger.warn("AuthFilters: Could not extract username from valid token");
+                    }
+                } else {
+                    logger.warn("AuthFilters: Token validation failed");
+                }
+            } else {
+                logger.debug("AuthFilters: No JWT token found in request header");
+            }
+        } catch (Exception e) {
+            logger.error("AuthFilters: Error during authentication", e);
+            // Don't block the request, just log the error
+        }
+
+        // ALWAYS continue the filter chain
+        filterChain.doFilter(request, response);
+    }
 }

@@ -41,7 +41,7 @@ public class SecurityConfig {
     AuthEntryPointJwt unauthorizedHandler;
 
     @Autowired
-    private UserDetailsService userDetailsService; // will be the UserDetailsServiceImpl bean
+    private UserDetailsService userDetailsService;
 
     @Autowired
     private RoleRepository roleRepository;
@@ -56,7 +56,6 @@ public class SecurityConfig {
         return new AuthFilters();
     }
 
-    // DaoAuthenticationProvider wired to the application's UserDetailsService and PasswordEncoder
     @Bean
     @Primary
     public DaoAuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
@@ -66,7 +65,6 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // In-memory users: user/password -> ROLE_USER, admin/mahesh@223 -> ROLE_ADMIN
     @Bean
     public UserDetailsService inMemoryUserDetailsService(PasswordEncoder passwordEncoder) {
         UserDetails user = User.withUsername("user")
@@ -82,7 +80,6 @@ public class SecurityConfig {
         return new InMemoryUserDetailsManager(user, admin);
     }
 
-    // DaoAuthenticationProvider for the in-memory users
     @Bean
     public DaoAuthenticationProvider inMemoryAuthProvider(UserDetailsService inMemoryUserDetailsService, PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -96,33 +93,38 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedHandler))
-                . sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests((requests) -> requests
-                        // allow sign-in and signup endpoints anonymously
-                        .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/echo").permitAll()
+                        // Public auth endpoints - no authentication required
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/signin").permitAll()
+                        .requestMatchers("/api/signup").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        // GET requests to public APIs require ROLE_USER (user/password)
+                        .requestMatchers("/error").permitAll()
+                        // Public GET endpoints require USER role
                         .requestMatchers(HttpMethod.GET, "/api/public/**").hasRole("USER")
-                        // POST requests to public APIs require ROLE_ADMIN (admin/mahesh@223)
+                        // Public POST endpoints require ADMIN role
                         .requestMatchers(HttpMethod.POST, "/api/public/**").hasRole("ADMIN")
-                        // admin endpoints
+                        // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 );
 
-        // Register all AuthenticationProviders with HttpSecurity so they are used for authentication
+        // Register all AuthenticationProviders
         for (AuthenticationProvider provider : providers) {
             http.authenticationProvider(provider);
         }
 
-        // enable HTTP Basic so the simple username/password (user/password or admin/mahesh@223) can be used
+        // Enable HTTP Basic for in-memory users
         http.httpBasic(Customizer.withDefaults());
 
+        // Add JWT filter BEFORE UsernamePasswordAuthenticationFilter
         http.addFilterBefore(authFilters(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web -> web.ignoring().requestMatchers("/v2/api-docs",
@@ -132,13 +134,12 @@ public class SecurityConfig {
                 "/webjars/**",
                 "/swagger-ui.html"));
     }
-    // Build an AuthenticationManager that uses all available AuthenticationProvider beans to avoid ambiguity
+
     @Bean
     public AuthenticationManager authenticationManager(List<AuthenticationProvider> providers) {
         return new ProviderManager(providers);
     }
 
-    // Seed roles at startup so signup can assign them
     @Bean
     public CommandLineRunner seedRoles() {
         return args -> {
@@ -148,5 +149,4 @@ public class SecurityConfig {
             }
         };
     }
-
 }

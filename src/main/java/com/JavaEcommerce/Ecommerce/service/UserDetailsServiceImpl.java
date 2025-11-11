@@ -30,7 +30,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         List<GrantedAuthority> authorities = appUser.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRollName().name()))
+                .map(role -> new SimpleGrantedAuthority( role.getRollName().name()))
                 .collect(Collectors.toList());
 
         return new org.springframework.security.core.userdetails.User(

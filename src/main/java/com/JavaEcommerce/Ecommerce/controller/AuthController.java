@@ -18,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +28,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
@@ -45,8 +45,8 @@ public class AuthController {
     @Autowired
     PasswordEncoder encoder;
 
-    // Authentication end point
-    @PostMapping("/signin")
+    // Authentication endpoint - supports both paths
+    @PostMapping({"/api/auth/signin", "/api/signin"})
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest request) {
         Authentication authentication;
         try {
@@ -56,29 +56,55 @@ public class AuthController {
                     )
             );
         } catch (org.springframework.security.core.AuthenticationException e) {
-            throw new RuntimeException(e);
+            return ResponseEntity.status(401)
+                    .body(new MessageResponse("Error: Invalid username or password"));
         }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // principal is a UserDetails instance
-        UserDetailImpl userDetails = UserDetailImpl.class.cast(authentication.getPrincipal());
+        // Handle both UserDetailImpl and Spring's User
+        Object principal = authentication.getPrincipal();
+        String username;
+        Long userId = 0L;
+        List<String> roles;
 
-        String jwt = jwtUtils.genearteJwtTokenFromUserName(userDetails);
+        if (principal instanceof UserDetailImpl) {
+            // Database user
+            UserDetailImpl userDetails = (UserDetailImpl) principal;
+            username = userDetails.getUsername();
+            userId = userDetails.getId();
+            roles = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+        } else if (principal instanceof org.springframework.security.core.userdetails.User) {
+            // In-memory user
+            org.springframework.security.core.userdetails.User userDetails =
+                    (org.springframework.security.core.userdetails.User) principal;
+            username = userDetails.getUsername();
+            roles = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+        } else {
+            // Fallback
+            UserDetails userDetails = (UserDetails) principal;
+            username = userDetails.getUsername();
+            roles = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+        }
 
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
+        // Generate JWT from username
+        String jwt = jwtUtils.getUserNameFromJwt(username);
 
-        LoginResponse response = new LoginResponse(userDetails.getId(), jwt, userDetails.getUsername(), roles);
+        LoginResponse response = new LoginResponse(userId, jwt, username, roles);
         return ResponseEntity.ok(response);
     }
 
-    //signup endpoint
-    @PostMapping("/signup")
+    // Signup endpoint - supports both paths
+    @PostMapping({"/api/auth/signup", "/api/signup"})
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest) {
 
-        //Check if username or email already exists
+        // Check if username or email already exists
         if (userRepository.existsByUserName(signupRequest.getUsername())) {
             return ResponseEntity
                     .badRequest()
@@ -97,7 +123,7 @@ public class AuthController {
         user.setPassword(encoder.encode(signupRequest.getPassword()));
 
         Set<String> strRoles = signupRequest.getRole();
-            Set<Role> roles = new HashSet<>();
+        Set<Role> roles = new HashSet<>();
         if (strRoles == null) {
             Role userRole = roleRepository.findByRollName(AppRole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
@@ -119,7 +145,6 @@ public class AuthController {
                         Role userRole = roleRepository.findByRollName(AppRole.ROLE_USER)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(userRole);
-
                 }
             });
         }
@@ -127,5 +152,4 @@ public class AuthController {
         userRepository.save(user);
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
-
 }
