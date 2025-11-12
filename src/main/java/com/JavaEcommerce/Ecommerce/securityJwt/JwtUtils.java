@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
@@ -27,23 +26,21 @@ public class JwtUtils {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-            @Value("${jwt.cookie.name}")
+    @Value("${jwt.cookie.name}")
     private String jwtCookie;
 
-//    public String getJwtFromHeader(HttpServletRequest request) {
-//        String bearerToken = request.getHeader("Authorization");
-//        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-//            String token = bearerToken.substring(7).trim();
-//            logger.debug("Extracted JWT from header, length: {}", token.length());
-//            return token;
-//        }
-//        logger.debug("No Bearer token found in Authorization header");
-//        return null;
-//    }
+    /**
+     * Get JWT cookie name - useful for signout
+     */
+    public String getJwtCookieName() {
+        return jwtCookie;
+    }
 
-    //JwtCookies
-    public String getJwtFromCookies(HttpServletRequest request){
-        Cookie cookie = WebUtils.getCookie(request,jwtCookie);
+    /**
+     * Extract JWT from cookies
+     */
+    public String getJwtFromCookies(HttpServletRequest request) {
+        Cookie cookie = WebUtils.getCookie(request, jwtCookie);
         if (cookie != null) {
             String token = cookie.getValue();
             logger.debug("Extracted JWT from cookie, length: {}", token.length());
@@ -52,22 +49,42 @@ public class JwtUtils {
             logger.debug("No JWT cookie found");
             return null;
         }
-
     }
 
-    //Generate JwtCookie
-    public ResponseCookie generateJwtCookie(UserDetailImpl userDetails){
+    /**
+     * Generate JWT cookie from UserDetailImpl (database users)
+     */
+    public ResponseCookie generateJwtCookie(UserDetailImpl userDetails) {
         String jwt = generateJwtTokenFromUsername(userDetails.getUsername());
-        logger.debug("Generated JWT for cookie, length: {}", jwt.length());
-        return ResponseCookie.from(jwtCookie,jwt)
+        logger.debug("Generated JWT cookie for database user: {}", userDetails.getUsername());
+        return buildResponseCookie(jwt);
+    }
+
+    /**
+     * Generate JWT cookie from username string (in-memory users)
+     */
+    public ResponseCookie generateJwtCookieFromUsername(String username) {
+        String jwt = generateJwtTokenFromUsername(username);
+        logger.debug("Generated JWT cookie for in-memory user: {}", username);
+        return buildResponseCookie(jwt);
+    }
+
+    /**
+     * Build ResponseCookie with consistent settings
+     */
+    private ResponseCookie buildResponseCookie(String jwt) {
+        return ResponseCookie.from(jwtCookie, jwt)
                 .path("/api")
-                .maxAge(jwtExpirationMs/1000)
-                .httpOnly(false)
+                .maxAge(jwtExpirationMs / 1000) // Convert to seconds
+                .httpOnly(true) // Prevents JavaScript access (XSS protection)
+                .secure(false) // Set to true in production with HTTPS
+                .sameSite("Lax") // CSRF protection
                 .build();
     }
 
-
-
+    /**
+     * Generate JWT token from username
+     */
     public String generateJwtTokenFromUsername(String username) {
         logger.info("=== Generating JWT ===");
         logger.info("Username: {}", username);
@@ -79,7 +96,6 @@ public class JwtUtils {
 
         try {
             Key key = getSigningKey();
-
             Date now = new Date();
             Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
@@ -110,8 +126,10 @@ public class JwtUtils {
         }
     }
 
+    /**
+     * Extract username from JWT token
+     */
     public String getUserNameFromJwt(String token) {
-        // Check for null or empty BEFORE trying to parse
         if (token == null) {
             logger.warn("getUserNameFromJwt: token is null");
             return null;
@@ -127,7 +145,8 @@ public class JwtUtils {
         // Check if token has the right format (3 parts separated by dots)
         String[] parts = token.split("\\.");
         if (parts.length != 3) {
-            logger.error("getUserNameFromJwt: Invalid JWT format. Expected 3 parts, got: {}. Token: '{}'", parts.length, token);
+            logger.error("getUserNameFromJwt: Invalid JWT format. Expected 3 parts, got: {}. Token: '{}'",
+                    parts.length, token);
             return null;
         }
 
@@ -155,8 +174,10 @@ public class JwtUtils {
         }
     }
 
+    /**
+     * Validate JWT token
+     */
     public boolean validateToken(String token) {
-        // Check for null or empty BEFORE trying to validate
         if (token == null) {
             logger.debug("validateToken: token is null");
             return false;
@@ -199,6 +220,9 @@ public class JwtUtils {
         return false;
     }
 
+    /**
+     * Get signing key for JWT
+     */
     private Key getSigningKey() {
         try {
             byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
@@ -208,7 +232,8 @@ public class JwtUtils {
             logger.warn("Failed to decode Base64 secret, using raw bytes");
             byte[] keyBytes = jwtSecret.getBytes();
             if (keyBytes.length < 64) {
-                throw new IllegalArgumentException("JWT secret must be at least 64 bytes for HS512. Current length: " + keyBytes.length);
+                throw new IllegalArgumentException(
+                        "JWT secret must be at least 64 bytes for HS512. Current length: " + keyBytes.length);
             }
             return Keys.hmacShaKeyFor(keyBytes);
         }

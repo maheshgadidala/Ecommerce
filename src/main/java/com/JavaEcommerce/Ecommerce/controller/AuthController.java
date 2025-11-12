@@ -11,11 +11,16 @@ import com.JavaEcommerce.Ecommerce.securityJwt.JwtUtils;
 import com.JavaEcommerce.Ecommerce.securityServices.UserDetailImpl;
 import com.JavaEcommerce.Ecommerce.request.LoginRequest;
 import com.JavaEcommerce.Ecommerce.response.LoginResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -47,27 +52,32 @@ public class AuthController {
 
     // Authentication endpoint - supports both paths
     @PostMapping({"/api/auth/signin", "/api/signin"})
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest request,
+                                              HttpServletResponse response) {
+        // Authenticate user
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
-                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                            request.getUsername(), request.getPassword()
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()
                     )
             );
-        } catch (org.springframework.security.core.AuthenticationException e) {
+        } catch (AuthenticationException e) {
             return ResponseEntity.status(401)
                     .body(new MessageResponse("Error: Invalid username or password"));
         }
 
+        // Set authentication in security context
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // Handle both UserDetailImpl and Spring's User
+        // Extract principal - handle both UserDetailImpl and Spring's User
         Object principal = authentication.getPrincipal();
         String username;
-        Long userId = 0L;
+        Long userId = null;
         List<String> roles;
 
+        // Check the type of principal
         if (principal instanceof UserDetailImpl) {
             // Database user
             UserDetailImpl userDetails = (UserDetailImpl) principal;
@@ -76,28 +86,47 @@ public class AuthController {
             roles = userDetails.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toList());
+
+            // Generate JWT cookie for database user
+            ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(userDetails);
+            response.addHeader(HttpHeaders.SET_COOKIE, jwtCookie.toString());
+
         } else if (principal instanceof org.springframework.security.core.userdetails.User) {
             // In-memory user
             org.springframework.security.core.userdetails.User userDetails =
                     (org.springframework.security.core.userdetails.User) principal;
             username = userDetails.getUsername();
+            userId = 0L; // In-memory users don't have database ID
             roles = userDetails.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toList());
+
+            // Generate JWT cookie for in-memory user (using username directly)
+            ResponseCookie jwtCookie = jwtUtils.generateJwtCookieFromUsername(username);
+            response.addHeader(HttpHeaders.SET_COOKIE, jwtCookie.toString());
+
         } else {
-            // Fallback
+            // Fallback for any other UserDetails implementation
             UserDetails userDetails = (UserDetails) principal;
             username = userDetails.getUsername();
+            userId = 0L;
             roles = userDetails.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toList());
+
+            ResponseCookie jwtCookie = jwtUtils.generateJwtCookieFromUsername(username);
+            response.addHeader(HttpHeaders.SET_COOKIE, jwtCookie.toString());
         }
 
-        // Generate JWT from username
-        String jwt = jwtUtils.getUserNameFromJwt(username);
+        // Return response with user info (no JWT token in body when using cookies)
+        LoginResponse loginResponse = new LoginResponse(
+                userId != null ? userId : 0L,
+                null, // No token in response body when using cookies
+                username,
+                roles
+        );
 
-        LoginResponse response = new LoginResponse(userId, jwt, username, roles);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(loginResponse);
     }
 
     // Signup endpoint - supports both paths
@@ -122,15 +151,17 @@ public class AuthController {
         user.setUserEmail(signupRequest.getEmail());
         user.setPassword(encoder.encode(signupRequest.getPassword()));
 
+        // Assign roles
         Set<String> strRoles = signupRequest.getRole();
         Set<Role> roles = new HashSet<>();
-        if (strRoles == null) {
+
+        if (strRoles == null || strRoles.isEmpty()) {
             Role userRole = roleRepository.findByRollName(AppRole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
             roles.add(userRole);
         } else {
             strRoles.forEach(role -> {
-                switch (role) {
+                switch (role.toLowerCase()) {
                     case "admin":
                         Role adminRole = roleRepository.findByRollName(AppRole.ROLE_ADMIN)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
@@ -148,8 +179,24 @@ public class AuthController {
                 }
             });
         }
+
         user.setRoles(roles);
         userRepository.save(user);
+
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+    }
+
+    // Signout endpoint to clear the cookie
+    @PostMapping({"/api/auth/signout", "/api/signout"})
+    public ResponseEntity<?> signoutUser() {
+        ResponseCookie cookie = ResponseCookie.from(jwtUtils.getJwtCookieName(), "")
+                .path("/api")
+                .maxAge(0)
+                .httpOnly(true)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(new MessageResponse("You've been signed out successfully!"));
     }
 }
