@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +24,7 @@ public class ProductController {
     ProductService productService;
 
     @PostMapping("/admin/category/{categoryId}/product")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDto> addProduct(@Valid @RequestBody ProductDto productDto,
                                                  @PathVariable Long categoryId) {
 
@@ -54,17 +56,20 @@ public class ProductController {
         return new ResponseEntity<>(productResponse, HttpStatus.OK);
     }
     @PutMapping("/admin/products/{productId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDto> updateProduct(@RequestBody ProductDto productDto,
                                                     @PathVariable Long productId){
         ProductDto updatedProduct=productService.updadateProduct(productDto,productId);
         return new ResponseEntity<>(updatedProduct,HttpStatus.OK);
     }
     @DeleteMapping("/admin/products/{prodcutId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDto> deleteProduct(@PathVariable Long prodcutId){
       ProductDto savedProducts=  productService.deleteProduct(prodcutId);
       return new ResponseEntity<>(savedProducts,HttpStatus.OK);
     }
     @PutMapping("product/{productid}/image")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDto> uploadImage(@PathVariable Long productid,
                                                   @RequestParam ("Image")MultipartFile image) throws IOException {
        ProductDto updatedProduct= productService.updateproductImage(productid,image);

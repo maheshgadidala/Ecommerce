@@ -1,29 +1,36 @@
-    package com.JavaEcommerce.Ecommerce.model;
+package com.JavaEcommerce.Ecommerce.model;
 
-    import jakarta.persistence.*;
-    import lombok.AllArgsConstructor;
-    import lombok.Data;
-    import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Entity
-    public class Product {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "products")
+@ToString
+public class Product {
 
-        @Id
-        @GeneratedValue(strategy = GenerationType.AUTO)
-        private Long productId;
-        private String productName;
-        private String image;
-        private String productDesc;
-        private Integer quantity;
-        private double price;
-        private double discount;
-        private double specialPrice;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long productId;
+    private String productName;
+    private String image;
+    private String productDesc;
+    private Integer quantity;
+    private double price;
+    private double discount;
+    private double specialPrice;
 
-        @ManyToOne
-        @JoinColumn(name="category_id")
-        private Category category;
+    @ManyToOne
+    @JoinColumn(name="category_id")
+    private Category category;
 
-    }
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+}

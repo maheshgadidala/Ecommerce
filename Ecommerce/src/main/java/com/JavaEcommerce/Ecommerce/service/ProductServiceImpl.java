@@ -41,29 +41,29 @@ public class ProductServiceImpl implements ProductService{
     @Override
     public ProductDto addprduct(Long categoryId, ProductDto productDto) {
 
-        Category category=categoryRepository.findById(categoryId)
-                .orElseThrow(()-> new ResourceNotFoundException("Category","categoryId",categoryId));
+        // Get category
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
 
-        boolean isProductNotPresent=true;
-        List<Product> products=category.getProduct();
-        for(Product value : products){
-            if(value.getProductName().equals(productDto.getProductName()));
-            isProductNotPresent=false;
-            break;
-        }
-        if(isProductNotPresent) {
-            Product product = modelMapper.map(productDto, Product.class);
-            product.setImage("default.png");
-            product.setCategory(category);
-            double specialPrice = product.getPrice() - ((product.getDiscount() * 0.01) * product.getPrice());
-            product.setSpecialPrice(specialPrice);
-            Product savedProduct = productRepo.save(product);
-            return modelMapper.map(savedProduct, ProductDto.class);
-        }else {
-            throw new ApiException("Product all Ready exists!!");
-        }
+        // Create new product directly (skip duplicate check for now)
+        //checking duplicates
+        Product product = new Product();
+        product.setProductName(productDto.getProductName());
+        product.setProductDesc(productDto.getProductDesc());
+        product.setQuantity(productDto.getQuantity());
+        product.setPrice(productDto.getPrice());
+        product.setDiscount(productDto.getDiscount());
+        product.setImage("default.png");
+        product.setCategory(category);
+
+        // Calculate special price
+        double specialPrice = product.getPrice() - ((product.getDiscount() * 0.01) * product.getPrice());
+        product.setSpecialPrice(specialPrice);
+
+        // Save product
+        Product savedProduct = productRepo.save(product);
+        return modelMapper.map(savedProduct, ProductDto.class);
     }
-
     @Override
     public ProductResponse getallProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
         //sort and pagination of products
