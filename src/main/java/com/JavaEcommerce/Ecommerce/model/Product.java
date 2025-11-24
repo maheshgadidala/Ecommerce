@@ -6,6 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -33,4 +36,10 @@ public class Product {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CartsItem> cartsItems = new ArrayList<>();
+
+    public Integer getStock() {
+        return 0;
+    }
 }

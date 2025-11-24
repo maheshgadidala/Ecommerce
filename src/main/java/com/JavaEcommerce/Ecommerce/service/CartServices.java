@@ -1,4 +1,10 @@
 package com.JavaEcommerce.Ecommerce.service;
 
-public class cartServices {
+
+import com.JavaEcommerce.Ecommerce.payload.CartDto;
+
+
+public interface CartServices {
+
+    CartDto addProductsToCart(Long productId, Integer quantity);
 }
