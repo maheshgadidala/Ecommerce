@@ -9,6 +9,7 @@ import com.JavaEcommerce.Ecommerce.payload.CartDto;
 import com.JavaEcommerce.Ecommerce.payload.ProductDto;
 import com.JavaEcommerce.Ecommerce.repo.CartItemRepo;
 import com.JavaEcommerce.Ecommerce.repo.CartRepo;
+import com.JavaEcommerce.Ecommerce.response.CartResponse;
 import com.JavaEcommerce.Ecommerce.util.AuthUtils;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -42,7 +44,7 @@ public class CartServicesImpl implements CartServices{
     // ...existing code...
 
     @Override
-    public CartDto addProductsToCart(Long productId, Integer quantity) {
+    public CartResponse addProductsToCart(Long productId, Integer quantity) {
         try {
             // Validate inputs
             if (productId == null || productId <= 0) {
@@ -73,13 +75,15 @@ public class CartServicesImpl implements CartServices{
             // find existing cart item for this cart and product
             CartsItem cartItem = cartItemRepo.findCartItemByProductIdAndCartId(userCart.getCartId(), productId);
 
+            Double priceAdded = product.getSpecialPrice() * quantity;
+
             if (cartItem != null) {
                 logger.debug("Cart item already exists, updating quantity");
                 cartItem.setQuantity(cartItem.getQuantity() + quantity);
                 cartItemRepo.save(cartItem);
 
                 // update cart total
-                userCart.setTotalPrice(userCart.getTotalPrice() + (product.getSpecialPrice() * quantity));
+                userCart.setTotalPrice(userCart.getTotalPrice() + priceAdded);
                 cartRepo.save(userCart);
                 logger.info("Cart item updated successfully");
 
@@ -99,12 +103,12 @@ public class CartServicesImpl implements CartServices{
                 productRepo.save(product);
 
                 // update cart total and save
-                userCart.setTotalPrice(userCart.getTotalPrice() + (product.getSpecialPrice() * quantity));
+                userCart.setTotalPrice(userCart.getTotalPrice() + priceAdded);
                 cartRepo.save(userCart);
                 logger.info("New cart item created and product stock decremented successfully");
             }
 
-            // prepare and return DTO
+            // prepare CartDto
             CartDto cartDto = modelMapper.map(userCart, CartDto.class);
             List<CartsItem> cartItems = userCart.getCartItems();
 
@@ -115,8 +119,33 @@ public class CartServicesImpl implements CartServices{
             }).toList();
             cartDto.setProducts(productDtos);
 
+            // prepare added product DTO
+            ProductDto addedProductDto = modelMapper.map(product, ProductDto.class);
+            addedProductDto.setQuantity(quantity);
+
             logger.info("Product successfully added to cart. Total cart items: {}", productDtos.size());
-            return cartDto;
+            logger.info("Cart Response - CartId: {}, TotalPrice: {}, Items Count: {}",
+                cartDto.getCartId(), cartDto.getTotalPrice(), productDtos.size());
+            for (ProductDto dto : productDtos) {
+                logger.info("  Product: {} (ID: {}), Qty: {}, Price: {}, SpecialPrice: {}, Discount: {}%",
+                    dto.getProductName(), dto.getProductId(), dto.getQuantity(),
+                    dto.getPrice(), dto.getSpecialPrice(), dto.getDiscount());
+            }
+
+            // Build and return enhanced response
+            CartResponse response = CartResponse.builder()
+                    .success(true)
+                    .message("Product added to cart successfully")
+                    .timestamp(LocalDateTime.now())
+                    .cart(cartDto)
+                    .addedProduct(addedProductDto)
+                    .quantityAdded(quantity)
+                    .priceAdded(priceAdded)
+                    .status("201 CREATED")
+                    .build();
+
+            logger.info("Returning CartResponse with enriched product data");
+            return response;
 
         } catch (ResourceNotFoundException | ApiException e) {
             logger.error("Error adding product to cart: {}", e.getMessage());
@@ -125,6 +154,12 @@ public class CartServicesImpl implements CartServices{
             logger.error("Unexpected error while adding product to cart", e);
             throw new ApiException("Error adding product to cart: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<CartDto> getAllCarts() {
+
+     return List.of();
     }
 
     private Cart createCart() {
