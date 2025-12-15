@@ -12,4 +12,12 @@ public interface CartServices {
     CartResponse addProductsToCart(Long productId, Integer quantity);
 
     List<CartDto> getAllCarts();
+
+    CartResponse updateProductQuantityInCart(Long productId, Integer quantity);
+
+    CartResponse deleteProductFromCart(Long productId);
+
+    CartResponse getCartDetails();
+
+    CartResponse clearCart();
 }

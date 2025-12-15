@@ -95,6 +95,13 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests((requests) -> requests
+                        // Swagger / OpenAPI endpoints - public access
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/webjars/**").permitAll()
+                        .requestMatchers("/swagger-resources/**").permitAll()
+                        .requestMatchers("/v2/api-docs").permitAll()
                         // Public auth endpoints - no authentication required
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/signin").permitAll()
@@ -103,8 +110,6 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         // Public GET endpoints require USER role
                         .requestMatchers(HttpMethod.GET, "/api/public/**").hasAnyRole("USER", "ADMIN")
-                        // Public POST endpoints require ADMIN role
-                        .requestMatchers(HttpMethod.POST, "/api/public/**").hasRole("ADMIN")
                         // Public POST endpoints require ADMIN role
                         .requestMatchers(HttpMethod.POST, "/api/public/**").hasRole("ADMIN")
                         // Admin endpoints
@@ -129,12 +134,18 @@ public class SecurityConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web -> web.ignoring().requestMatchers("/v2/api-docs",
+        return (web -> web.ignoring().requestMatchers(
+                // Swagger 3.0 / OpenAPI endpoints
                 "/v3/api-docs/**",
-                "/swagger-resources/**",
                 "/swagger-ui/**",
+                "/swagger-ui.html",
                 "/webjars/**",
-                "/swagger-ui.html"));
+                "/swagger-resources/**",
+                "/swagger-resources",
+                // Swagger 2.0 endpoints (backward compatibility)
+                "/v2/api-docs",
+                "/swagger-ui/index.html"
+        ));
     }
 
     @Bean

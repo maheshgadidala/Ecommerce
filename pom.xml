@@ -97,6 +97,18 @@
 			<artifactId>jjwt-jackson</artifactId>
 			<version>0.12.6</version>
 		</dependency>
+		<!-- Swagger 3.0 / OpenAPI 3.0 - Better than Springfox -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>2.3.0</version>
+		</dependency>
+		<!-- Swagger Core for OpenAPI models -->
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-core-jakarta</artifactId>
+			<version>2.2.20</version>
+		</dependency>
 	</dependencies>
 
 	<build>

@@ -158,8 +158,214 @@ public class CartServicesImpl implements CartServices{
 
     @Override
     public List<CartDto> getAllCarts() {
+        return List.of();
+    }
 
-     return List.of();
+    @Override
+    public CartResponse updateProductQuantityInCart(Long productId, Integer quantity) {
+        try {
+            logger.info("Updating product quantity in cart - ProductId: {}, NewQuantity: {}", productId, quantity);
+
+            // Validate inputs
+            if (productId == null || productId <= 0) {
+                throw new ApiException("ProductId must be a positive number");
+            }
+            if (quantity == null || quantity <= 0) {
+                throw new ApiException("Quantity must be a positive number");
+            }
+
+            // Get user's cart
+            Cart userCart = createCart();
+            logger.debug("Cart found with ID: {}", userCart.getCartId());
+
+            // Get product
+            Product product = productRepo.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+            // Check stock
+            if (product.getQuantity() < quantity) {
+                logger.warn("Insufficient stock. Available: {}, Requested: {}", product.getQuantity(), quantity);
+                throw new ApiException("Insufficient stock for product: " + product.getProductName());
+            }
+
+            // Find existing cart item
+            CartsItem cartItem = cartItemRepo.findCartItemByProductIdAndCartId(userCart.getCartId(), productId);
+            if (cartItem == null) {
+                throw new ResourceNotFoundException("Cart Item", "productId", productId);
+            }
+
+            // Calculate price difference
+            Double oldPrice = cartItem.getQuantity() * product.getSpecialPrice();
+            Double newPrice = quantity * product.getSpecialPrice();
+            Double priceDifference = newPrice - oldPrice;
+
+            // Update quantity
+            cartItem.setQuantity(quantity);
+            cartItemRepo.save(cartItem);
+            logger.debug("Cart item quantity updated");
+
+            // Update cart total
+            userCart.setTotalPrice(userCart.getTotalPrice() + priceDifference);
+            cartRepo.save(userCart);
+            logger.info("Cart total updated");
+
+            // Prepare response
+            CartDto cartDto = modelMapper.map(userCart, CartDto.class);
+            List<CartsItem> cartItems = userCart.getCartItems();
+            List<ProductDto> productDtos = cartItems.stream().map((item) -> {
+                ProductDto productDto = modelMapper.map(item.getProduct(), ProductDto.class);
+                productDto.setQuantity(item.getQuantity());
+                return productDto;
+            }).toList();
+            cartDto.setProducts(productDtos);
+
+            return CartResponse.builder()
+                    .success(true)
+                    .message("Product quantity updated successfully")
+                    .timestamp(LocalDateTime.now())
+                    .cart(cartDto)
+                    .quantityAdded(quantity)
+                    .priceAdded(newPrice)
+                    .status("200 OK")
+                    .build();
+
+        } catch (ResourceNotFoundException | ApiException e) {
+            logger.error("Error updating product quantity: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error while updating product quantity", e);
+            throw new ApiException("Error updating product quantity: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public CartResponse deleteProductFromCart(Long productId) {
+        try {
+            logger.info("Deleting product from cart - ProductId: {}", productId);
+
+            if (productId == null || productId <= 0) {
+                throw new ApiException("ProductId must be a positive number");
+            }
+
+            // Get user's cart
+            Cart userCart = createCart();
+            logger.debug("Cart found with ID: {}", userCart.getCartId());
+
+            // Find cart item
+            CartsItem cartItem = cartItemRepo.findCartItemByProductIdAndCartId(userCart.getCartId(), productId);
+            if (cartItem == null) {
+                throw new ResourceNotFoundException("Cart Item", "productId", productId);
+            }
+
+            // Get product
+            Product product = productRepo.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+            // Calculate removed price
+            Double removedPrice = cartItem.getQuantity() * product.getSpecialPrice();
+
+            // Delete cart item
+            cartItemRepo.delete(cartItem);
+            logger.debug("Cart item deleted");
+
+            // Update cart total
+            userCart.setTotalPrice(userCart.getTotalPrice() - removedPrice);
+            cartRepo.save(userCart);
+            logger.info("Cart total updated after deletion");
+
+            // Prepare response
+            CartDto cartDto = modelMapper.map(userCart, CartDto.class);
+            List<CartsItem> cartItems = userCart.getCartItems();
+            List<ProductDto> productDtos = cartItems.stream().map((item) -> {
+                ProductDto productDto = modelMapper.map(item.getProduct(), ProductDto.class);
+                productDto.setQuantity(item.getQuantity());
+                return productDto;
+            }).toList();
+            cartDto.setProducts(productDtos);
+
+            return CartResponse.builder()
+                    .success(true)
+                    .message("Product deleted from cart successfully")
+                    .timestamp(LocalDateTime.now())
+                    .cart(cartDto)
+                    .priceAdded(removedPrice)
+                    .status("200 OK")
+                    .build();
+
+        } catch (ResourceNotFoundException | ApiException e) {
+            logger.error("Error deleting product from cart: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error while deleting product", e);
+            throw new ApiException("Error deleting product: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public CartResponse getCartDetails() {
+        try {
+            logger.info("Fetching cart details for user");
+
+            Cart userCart = createCart();
+            logger.debug("Cart found with ID: {}", userCart.getCartId());
+
+            CartDto cartDto = modelMapper.map(userCart, CartDto.class);
+            List<CartsItem> cartItems = userCart.getCartItems();
+            List<ProductDto> productDtos = cartItems.stream().map((item) -> {
+                ProductDto productDto = modelMapper.map(item.getProduct(), ProductDto.class);
+                productDto.setQuantity(item.getQuantity());
+                return productDto;
+            }).toList();
+            cartDto.setProducts(productDtos);
+
+            return CartResponse.builder()
+                    .success(true)
+                    .message("Cart details retrieved successfully")
+                    .timestamp(LocalDateTime.now())
+                    .cart(cartDto)
+                    .status("200 OK")
+                    .build();
+
+        } catch (Exception e) {
+            logger.error("Error fetching cart details: {}", e.getMessage());
+            throw new ApiException("Error fetching cart details: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public CartResponse clearCart() {
+        try {
+            logger.info("Clearing cart for user");
+
+            Cart userCart = createCart();
+            logger.debug("Cart found with ID: {}", userCart.getCartId());
+
+            // Delete all cart items
+            for (CartsItem cartItem : new java.util.ArrayList<>(userCart.getCartItems())) {
+                cartItemRepo.delete(cartItem);
+            }
+            logger.debug("All cart items deleted");
+
+            // Reset cart total
+            userCart.setTotalPrice(0.0);
+            cartRepo.save(userCart);
+            logger.info("Cart cleared successfully");
+
+            CartDto cartDto = modelMapper.map(userCart, CartDto.class);
+            cartDto.setProducts(List.of());
+
+            return CartResponse.builder()
+                    .success(true)
+                    .message("Cart cleared successfully")
+                    .timestamp(LocalDateTime.now())
+                    .cart(cartDto)
+                    .status("200 OK")
+                    .build();
+
+        } catch (Exception e) {
+            logger.error("Error clearing cart: {}", e.getMessage());
+            throw new ApiException("Error clearing cart: " + e.getMessage());
+        }
     }
 
     private Cart createCart() {
